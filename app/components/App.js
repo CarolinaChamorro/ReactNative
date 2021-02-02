@@ -1,74 +1,173 @@
-import React,{Component} from 'react';
-import { StyleSheet, Text, View,Dimensions } from 'react-native';
-import MapView from 'react-native-maps';
+import React from 'react';
+import { Dimensions, StyleSheet, Text, View, Image } from 'react-native';
+import * as Permissions from 'expo-permissions'
+import {MapView,Polyline,Marker} from 'react-native-maps'
 
 
-const{width,height}=Dimensions.get('window')
-export default class App extends Component {
+const  locations =require ('../../assets/locations.json');
 
-  constructor(){
-    super()
-    this.state={
-      region:{
-        latitude:null,
-        longitude:null,
-        latitudeDelta:null,
-        longitudeDelta:null
-      }
-    }
+const { width, height } = Dimensions.get('screen')
+
+export default class App extends React.Component {
+  state = {
+    latitude: null,
+    longitude: null,
+    locations: locations
   }
-  calcDelta(lat,lon,accuracy){
-    const oneDegreeOfLongidInMeters=111.32;
-    const circunference=(40075 / 360)
 
-    const latDelta= accuracy *(1 / (Math.cos(lat)* circunference))
-    const lonDelta = (accuracy / oneDegreeOfLongidInMeters)
+  async componentDidMount() {
+    const { status } = await Permissions.getAsync(Permissions.LOCATION)
+
+    if (status !== 'granted') {
+      const response = await Permissions.askAsync(Permissions.LOCATION)
+    }
+    navigator.geolocation.getCurrentPosition(
+      ({ coords: { latitude, longitude } }) => this.setState({ latitude, longitude }, this.mergeCoords),
+      (error) => console.log('Error:', error)
+    )
+
+    const { locations: [ sampleLocation ] } = this.state
 
     this.setState({
-      region: {
-        latitude:lat,
-        longitude:lon,
-        latitudeDelta:latDelta,
-        longitudeDelta:lonDelta
-      }
-    })
+      desLatitude: sampleLocation.coords.latitude,
+      desLongitude: sampleLocation.coords.longitude
+    }, this.mergeCoords)
   }
-  componentDidMount(){
-    navigator.geolocation.getCurrentPosition(
-      (position)=>{
-        const lat=position.coords.latitude
-        const lon=position.coords.longitude
-        const accuracy=position.coords.accuracy
-        this.calcDelta(lat,lon,accuracy)
-      }
-    )
-  }
-  
-  Marker(){
-    return{
-      latitude:this.state.region.latitude,
-      longitude:this.state.region.longitude,
-      
+
+  mergeCoords = () => {
+    const {
+      latitude,
+      longitude,
+      desLatitude,
+      desLongitude
+    } = this.state
+
+    const hasStartAndEnd = latitude !== null && desLatitude !== null
+
+    if (hasStartAndEnd) {
+      const concatStart = `${latitude},${longitude}`
+      const concatEnd = `${desLatitude},${desLongitude}`
+      this.getDirections(concatStart, concatEnd)
     }
   }
-  render(){
-  return (
-    <View style={styles.container}>
-      {this.state.region.latitude ? <MapView 
-      style={styles.map}
-      initialRegion={this.state.region}
-      >
-        <MapView.Marker
-        coordinate={this.Marker()}
-        title="im here"
-        description="home"
+
+  async getDirections(startLoc, desLoc) {
+    try {
+      const resp = await fetch(`https://maps.googleapis.com/maps/api/directions/json?origin=${startLoc}&destination=${desLoc}`)
+      const respJson = await resp.json();
+      const response = respJson.routes[0]
+      const distanceTime = response.legs[0]
+      const distance = distanceTime.distance.text
+      const time = distanceTime.duration.text
+      const points = Polyline.decode(respJson.routes[0].overview_polyline.points);
+      const coords = points.map(point => {
+        return {
+          latitude: point[0],
+          longitude: point[1]
+        }
+      })
+      this.setState({ coords, distance, time })
+    } catch(error) {
+      console.log('Error: ', error)
+    }
+  }
+
+  onMarkerPress = location => () => {
+    const { coords: { latitude, longitude } } = location
+    this.setState({
+      destination: location,
+      desLatitude: latitude,
+      desLongitude: longitude
+    }, this.mergeCoords)
+  }
+
+  renderMarkers = () => {
+    const { locations } = this.state
+    return (
+      <View>
+        {
+          locations.map((location, idx) => {
+            const {
+              coords: { latitude, longitude }
+            } = location
+            return (
+              <Marker
+                key={idx}
+                coordinate={{ latitude, longitude }}
+                onPress={this.onMarkerPress(location)}
+              />
+            )
+          })
+        }
+      </View>
+    )
+  }
+
+  render() {
+    const {
+      time,
+      coords,
+      distance,
+      latitude,
+      longitude,
+      destination
+    } = this.state
+
+    if (latitude) {
+      return (
+        <View> 
+        <MapView
+          showsUserLocation
+          style={{ flex: 1 }}
+          initialRegion={{
+            latitude,
+            longitude,
+            latitudeDelta: 0.0922,
+            longitudeDelta: 0.0421
+          }}
+        >
+        <View
+          style={{
+            width,
+            paddingTop: 10,
+            alignSelf: 'center',
+            alignItems: 'center',
+            height: height * 0.15,
+            backgroundColor: 'white',
+            justifyContent: 'flex-end',
+          }}>
+          <Text style={{ fontWeight: 'bold' }}>Estimated Time: {time}</Text>
+          <Text style={{ fontWeight: 'bold' }}>Estimated Distance: {distance}</Text>
+        </View>
+        {this.renderMarkers()}
+        <MapView.Polyline
+          strokeWidth={2}
+          strokeColor="red"
+          coordinates={coords}
         />
-      </MapView>: null }
-      
-    </View>
-  );
+        <Image
+          source={{ uri: destination && destination.image_url }}
+          style={{
+            flex: 1,
+            width: width * 0.95,
+            alignSelf: 'center',
+            height: height * 0.15,
+            position: 'absolute',
+            bottom: height * 0.05
+          }}
+        />
+      </MapView>
+      </View>
+      );
+    }
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text>We need your permission!</Text>
+      </View>
+    )
+  }
 }
-}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -76,11 +175,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  map:{
-    flex:1,
-    width:width,
-    
-    
-   
-  }
 });

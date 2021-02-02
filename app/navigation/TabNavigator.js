@@ -11,12 +11,12 @@ const TabNavigator = () => {
   return (
     <Tab.Navigator tabBar={props => <TabBar {...props} />}>
       <Tab.Screen
-        name='Home'
+        name='Donadores'
         component={Home}
         initialParams={{ icon: 'home' }}
       />
       <Tab.Screen
-        name='Ubicacón'
+        name='Rutas'
         component={App}
         initialParams={{ icon: 'plus' }}
       />
