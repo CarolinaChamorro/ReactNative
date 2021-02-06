@@ -2,6 +2,7 @@ import React from 'react';
 import { Dimensions, StyleSheet, Text, View, Image } from 'react-native';
 import * as Permissions from 'expo-permissions'
 import {MapView,Polyline,Marker} from 'react-native-maps'
+// import getDirections from 'react-native-google-maps-directions';
 
 
 const  locations =require ('../../assets/locations.json');

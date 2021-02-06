@@ -1,7 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Home from '../components/Home';
-import App from '../components/App';
+import Mapa from '../components/Mapa';
 
 import TabBar from '../components/TabBar';
 
@@ -17,7 +17,7 @@ const TabNavigator = () => {
       />
       <Tab.Screen
         name='Rutas'
-        component={App}
+        component={Mapa}
         initialParams={{ icon: 'plus' }}
       />
       
