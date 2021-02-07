@@ -1,8 +1,8 @@
+//ubicacipon de punto 
 import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import * as Permissions from 'expo-permissions'
-import MapView, {  Marker }  from 'react-native-maps';
-
+import MapView,{Marker} from 'react-native-maps';
 
 export default class App extends React.Component {
   state={
@@ -19,56 +19,30 @@ export default class App extends React.Component {
       const response= await Permissions.askAsync(Permissions.LOCATION)
     }
     navigator.geolocation.getCurrentPosition(
-      ({coords: {latitude, longitude}})=>this.setState({latitude,longitude}, this.mergeCoords),
+      ({coords: {latitude, longitude}})=>this.setState({latitude,longitude}),
       (error)=>console.log('Error',error)
     )
 
-    return fetch('http://192.168.10.128:3030/donadores')
+    fetch('http://192.168.10.128:3030/donadores')
     .then((response) => response.json())
-    .then((responseJson) => {
-
-
-      this.setState({
-        isLoading: false,
-        dataSource: responseJson,
-        desLatitude:responseJson.latitude,
-        desLongitude:responseJson.longitude
-      });
-       
+    .then((json) => {
+      this.setState({dataSource: json})
+      // console.log(this.state.dataSource)        
     })
-    .catch((error) =>{
+    .catch((error) => {
       console.error(error);
+    })
+    .finally(() => {
+      this.setState({isLoading:false})
     });
     
   }
-
+  
   
 
-  renderMarkers = () => {
-
-    const ubicacion = this.setState;
-    console.log(ubicacion.latitude);
-    return (
-      <View>
-        {
-          ubicacion.map((location) => {
-            const {
-             latitude, longitude 
-            } = location
-            return (
-              <Marker
-                coordinate={{ latitude, longitude }}
-              />
-            )
-          })
-        }
-      </View>
-    )
-  }
-
  render(){
-   const {latitude,longitude}=this.state.dataSource
-
+  const {latitude,longitude}=this.state
+  const ubicacion = this.state.dataSource;
    if(latitude){
     return(
       <MapView
@@ -81,7 +55,19 @@ export default class App extends React.Component {
         longitudeDelta: 0.0421,
       }}
       >
-        {this.renderMarkers()}
+         {
+          ubicacion.map((location) => {
+            
+            return (
+              <Marker
+                key={location.id}
+                coordinate={{  latitude : parseFloat(location.latitude) , longitude : parseFloat(location.longitude) }}
+                title={location.nombre + " "+location.apellido}
+                description={location.email}
+              />
+            )
+          })
+        }
         
       </MapView>
     );
